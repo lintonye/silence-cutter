@@ -106,9 +106,9 @@ async function cutSilence(inputFile, outputFile) {
     await run2(`echo "file '/pwd/${sliceTemp}'" >> ${joinlist}`)
   };
   for (let i = 0; i < silenceRanges.length; i++) {
-    let start, end = silenceRanges[i][0];
+    let start, end = silenceRanges[i][0] + 0.5;
     if (i === 0) start = 0;
-    else start = silenceRanges[i - 1][1];
+    else start = silenceRanges[i - 1][1] - 0.5;
     await slice(start, end);
   }
   await slice(silenceRanges[silenceRanges.length - 1][1]);
