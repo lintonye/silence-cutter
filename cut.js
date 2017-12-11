@@ -34,8 +34,8 @@ function run2(commandLine, stdoutLineScanner, stderrLineScanner) {
     });
   };
 
-  scanOutput(proc.stdout, stdoutLineScanner);
-  scanOutput(proc.stderr, stderrLineScanner);
+  stdoutLineScanner && scanOutput(proc.stdout, stdoutLineScanner);
+  stderrLineScanner && scanOutput(proc.stderr, stderrLineScanner);
 
   return new Promise((resolve, reject) => {
     proc.stdout.on('close', () => resolve());
@@ -45,7 +45,12 @@ function run2(commandLine, stdoutLineScanner, stderrLineScanner) {
 async function runFFmpeg(inputFile, params, stderrLineScanner) {
   const pwd = await run('pwd');
   const ffmpeg = `docker run --volume=${pwd}:/pwd --rm jrottenberg/ffmpeg`;
-  await run2(`${ffmpeg} -i /pwd/${inputFile} ${params}`, null, stderrLineScanner);
+  let frontParams = '', rearParams = params;
+  if (params.front) {
+    frontParams = params.front;
+    rearParams = params.rear;
+  }
+  await run2(`${ffmpeg} ${frontParams} -i /pwd/${inputFile} ${rearParams}`, null, stderrLineScanner);
 }
 
 async function detectSilenceAndStill(inputFile) {
@@ -55,7 +60,7 @@ async function detectSilenceAndStill(inputFile) {
     -f null \
     -
   `;
-  const decimal='\\d+(.\\d+)?';
+  const decimal = '\\d+(.\\d+)?';
   const hex = '0x[0-9a-f]+';
   const silenceStartRegex = new RegExp(`\\[silencedetect @ ${hex}\\] silence_start: (${decimal}).+`);
   const silenceEndRegex = new RegExp(`\\[silencedetect @ ${hex}\\] silence_end: (${decimal}).+`);;
@@ -83,10 +88,44 @@ async function detectSilenceAndStill(inputFile) {
   return silenceRanges;
 }
 
+async function cutSilence(inputFile, outputFile) {
+  const silenceRanges = await detectSilenceAndStill(inputFile);
+
+  const sliceTempFile = idx => `slice-tmp${idx}.mov`;
+  const joinlist = 'joinlist.txt';
+  console.log('=== Cleaning up... ===');
+  await run2('rm slice-tmp*.*');
+  await run2(`rm ${joinlist}`);
+
+  console.log('=== Splitting video by silence parts... ===', silenceRanges);
+  let sliceCount = 0;
+  const slice = async (start, end) => {
+    const endPos = end ? `-to ${end}` : '';
+    const sliceTemp = sliceTempFile(sliceCount++);
+    await runFFmpeg(inputFile, `-y -ss ${start} ${endPos} -c copy /pwd/${sliceTemp}`);
+    await run2(`echo "file '/pwd/${sliceTemp}'" >> ${joinlist}`)
+  };
+  for (let i = 0; i < silenceRanges.length; i++) {
+    let start, end = silenceRanges[i][0];
+    if (i === 0) start = 0;
+    else start = silenceRanges[i - 1][1];
+    await slice(start, end);
+  }
+  await slice(silenceRanges[silenceRanges.length - 1][1]);
+  console.log('=== Joining videos... ===');
+  await runFFmpeg(joinlist, { front: '-f concat -safe 0', rear: `-c copy /pwd/${outputFile}` });
+}
+
 const args = process.argv.slice(2);
 
-detectSilenceAndStill(args[0])
-  .then(r => console.log('result=', r))
+cutSilence(args[0], args[1])
+  .then(r => {
+    console.log('done.');
+    // console.log('Video written to ' + args[1])
+  });
+
+// detectSilenceAndStill(args[0])
+//   .then(r => console.log('result=', r))
 
 // run2('pwd')
 //   .then(r => console.log('pwd', r))
