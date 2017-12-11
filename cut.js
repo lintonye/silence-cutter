@@ -57,13 +57,13 @@ async function detectSilenceAndStill(inputFile) {
   `;
   const decimal='\\d+(.\\d+)?';
   const hex = '0x[0-9a-f]+';
-  const slienceStartRegex = new RegExp(`\\[silencedetect @ ${hex}\\] silence_start: (${decimal}).+`);
-  const slienceEndRegex = new RegExp(`\\[silencedetect @ ${hex}\\] silence_end: (${decimal}).+`);;
+  const silenceStartRegex = new RegExp(`\\[silencedetect @ ${hex}\\] silence_start: (${decimal}).+`);
+  const silenceEndRegex = new RegExp(`\\[silencedetect @ ${hex}\\] silence_end: (${decimal}).+`);;
   const sceneChangeRegex = new RegExp(`\\[Parsed_showinfo_1 @ ${hex}\\] n:\\s*\\d+ pts:\\s*\\d+\\s+pts_time:(${decimal}).+`);
   const lineScanner = line => {
-    const ss = slienceStartRegex.exec(line);
+    const ss = silenceStartRegex.exec(line);
     if (ss) console.log('===========> silenceStart:', ss[1]);
-    const se = slienceEndRegex.exec(line);
+    const se = silenceEndRegex.exec(line);
     if (se) console.log('===========> silenceEnd:', se[1]);
     const sc = sceneChangeRegex.exec(line);
     if (sc) console.log('=======> sceneChange at:', sc[1]);
