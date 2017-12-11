@@ -51,7 +51,7 @@ async function runFFmpeg(inputFile, params, stderrLineScanner) {
 async function detectSilenceAndStill(inputFile) {
   const params = `\
     -filter:v "select='gt(scene,0.1)',showinfo" \
-    -af silencedetect=noise=-50dB:d=2 \
+    -af silencedetect=noise=-40dB:d=3 \
     -f null \
     -
   `;
