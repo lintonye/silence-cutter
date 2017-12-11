@@ -75,7 +75,7 @@ async function detectSilenceAndStill(inputFile) {
     const sc = sceneChangeRegex.exec(line);
     if (sc && start !== null) {
       // If there's a scene change, discard this range
-      console.log('===> Discard silence range starting at ' + start);
+      console.log(`===> Discarded silence range starting at ${start} due to scene change.`);
       start = null;
     }
     if (start !== null && end !== null) {
@@ -85,6 +85,7 @@ async function detectSilenceAndStill(inputFile) {
     }
   }
   await runFFmpeg(inputFile, params, lineScanner);
+  if (start !== null) silenceRanges.push([start, null]);
   return silenceRanges;
 }
 
@@ -111,7 +112,8 @@ async function cutSilence(inputFile, outputFile) {
     else start = silenceRanges[i - 1][1] - 0.5;
     await slice(start, end);
   }
-  await slice(silenceRanges[silenceRanges.length - 1][1]);
+  const lastSilenceEnd = silenceRanges[silenceRanges.length - 1][1];
+  lastSilenceEnd && await slice(lastSilenceEnd);
   console.log('=== Joining videos... ===');
   await runFFmpeg(joinlist, { front: '-f concat -safe 0', rear: `-c copy /pwd/${outputFile}` });
 }
