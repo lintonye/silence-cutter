@@ -60,15 +60,27 @@ async function detectSilenceAndStill(inputFile) {
   const silenceStartRegex = new RegExp(`\\[silencedetect @ ${hex}\\] silence_start: (${decimal}).+`);
   const silenceEndRegex = new RegExp(`\\[silencedetect @ ${hex}\\] silence_end: (${decimal}).+`);;
   const sceneChangeRegex = new RegExp(`\\[Parsed_showinfo_1 @ ${hex}\\] n:\\s*\\d+ pts:\\s*\\d+\\s+pts_time:(${decimal}).+`);
+  let silenceRanges = [];
+  let start = null, end = null;
   const lineScanner = line => {
     const ss = silenceStartRegex.exec(line);
-    if (ss) console.log('===========> silenceStart:', ss[1]);
+    if (ss) start = Number.parseFloat(ss[1]);
     const se = silenceEndRegex.exec(line);
-    if (se) console.log('===========> silenceEnd:', se[1]);
+    if (se) end = Number.parseFloat(se[1]);
     const sc = sceneChangeRegex.exec(line);
-    if (sc) console.log('=======> sceneChange at:', sc[1]);
+    if (sc && start !== null) {
+      // If there's a scene change, discard this range
+      console.log('===> Discard silence range starting at ' + start);
+      start = null;
+    }
+    if (start !== null && end !== null) {
+      silenceRanges.push([start, end]);
+      start = null;
+      end = null;
+    }
   }
   await runFFmpeg(inputFile, params, lineScanner);
+  return silenceRanges;
 }
 
 const args = process.argv.slice(2);
