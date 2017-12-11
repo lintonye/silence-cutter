@@ -30,7 +30,7 @@ function run2(commandLine, stdoutLineScanner, stderrLineScanner) {
       lines.filter(filter).forEach(l => lineScanner && lineScanner(l));
     });
     stream.on('close', () => {
-      lineScanner && lineScanner(buffer);
+      lineScanner && buffer && lineScanner(buffer);
     });
   };
 
@@ -55,12 +55,18 @@ async function detectSilenceAndStill(inputFile) {
     -f null \
     -
   `;
-  const slienceStartRegex = /\[silencedetect @ 0x[0-9a-f]+\] silence_start: (\d(.\d+)?).+/;
-  const slienceEndRegex = /\[silencedetect @ 0x[0-9a-f]+\] silence_end: (\d(.\d+)?).+/;
-  const sceneChangeRegex = /\[Parsed_showinfo_1 @ 0x[0-9a-f]+\] n:   \d+ pts:  \d+ pts_time:(\d(.\d+)?).+/;
+  const decimal='\\d+(.\\d+)?';
+  const hex = '0x[0-9a-f]+';
+  const slienceStartRegex = new RegExp(`\\[silencedetect @ ${hex}\\] silence_start: (${decimal}).+`);
+  const slienceEndRegex = new RegExp(`\\[silencedetect @ ${hex}\\] silence_end: (${decimal}).+`);;
+  const sceneChangeRegex = new RegExp(`\\[Parsed_showinfo_1 @ ${hex}\\] n:\\s*\\d+ pts:\\s*\\d+\\s+pts_time:(${decimal}).+`);
   const lineScanner = line => {
-    const ss = slienceEndRegex.exec(line);
+    const ss = slienceStartRegex.exec(line);
     if (ss) console.log('===========> silenceStart:', ss[1]);
+    const se = slienceEndRegex.exec(line);
+    if (se) console.log('===========> silenceEnd:', se[1]);
+    const sc = sceneChangeRegex.exec(line);
+    if (sc) console.log('=======> sceneChange at:', sc[1]);
   }
   await runFFmpeg(inputFile, params, lineScanner);
 }
