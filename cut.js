@@ -105,9 +105,11 @@ async function detectSilenceAndStill(inputFile) {
 
 async function cutSilence(inputFile, outputFile) {
   const silenceRanges = await detectSilenceAndStill(inputFile);
+  const tempFileDir = ".slicer";
+  await run2(`mkdir -p ${tempFileDir}`);
 
-  const sliceTempFile = idx => `slice-tmp${idx}.mov`;
-  const joinlist = "joinlist.txt";
+  const sliceTempFile = idx => `${tempFileDir}/slice-tmp${idx}.mov`;
+  const joinlist = `${tempFileDir}/joinlist.txt`;
   console.log("=== Cleaning up... ===");
   await run2("rm slice-tmp*.*");
   await run2(`rm ${joinlist}`);
