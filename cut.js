@@ -63,7 +63,7 @@ async function detectSilenceAndStill(inputFile) {
   // disable scene detection for now
   // -filter:v "select='gt(scene,0.1)',showinfo" \
   const params = `\
-    -af silencedetect=noise=-30dB:d=3 \
+    -af silencedetect=noise=-40dB:d=3 \
     -f null \
     -
   `;
@@ -137,8 +137,8 @@ async function cutSilence(inputFile, outputFile) {
   };
   for (let i = 0; i < silenceRanges.length; i++) {
     if (i === 0 && silenceRanges[i][0] === 0) continue;
-    const start = i === 0 ? 0 : silenceRanges[i - 1][1];
-    const end = silenceRanges[i][0];
+    const start = i === 0 ? 0 : silenceRanges[i - 1][1] - 0.5;
+    const end = silenceRanges[i][0] + 0.5;
     await slice(start, end);
   }
   const lastSilenceEnd = silenceRanges[silenceRanges.length - 1][1];
