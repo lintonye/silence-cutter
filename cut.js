@@ -52,7 +52,7 @@ async function runFFmpeg(inputFile, params, stderrLineScanner) {
     rearParams = params.rear;
   }
   await run2(
-    `${ffmpeg} ${frontParams} -i /pwd/${inputFile} ${rearParams}`,
+    `${ffmpeg} ${frontParams} -i "/pwd/${inputFile}" ${rearParams}`,
     null,
     stderrLineScanner
   );
@@ -104,15 +104,17 @@ async function detectSilenceAndStill(inputFile) {
 }
 
 async function cutSilence(inputFile, outputFile) {
+  console.log(`=> inputFile: ${inputFile}, outputFile: ${outputFile}`);
+
   const silenceRanges = await detectSilenceAndStill(inputFile);
-  const tempFileDir = ".slicer";
+  const tempFileDir = ".silence-cutter";
   await run2(`mkdir -p ${tempFileDir}`);
 
   const sliceTempFile = idx => `${tempFileDir}/slice-tmp${idx}.mov`;
   const joinlist = `${tempFileDir}/joinlist.txt`;
   console.log("=== Cleaning up... ===");
-  await run2("rm slice-tmp*.*");
-  await run2(`rm ${joinlist}`);
+  await run2("rm -f slice-tmp*.*");
+  await run2(`rm -f ${joinlist}`);
 
   console.log("=== Splitting video by silence parts... ===", silenceRanges);
   let sliceCount = 0;
@@ -137,7 +139,7 @@ async function cutSilence(inputFile, outputFile) {
   console.log("=== Joining videos... ===");
   await runFFmpeg(joinlist, {
     front: "-f concat -safe 0",
-    rear: `-f mp4 /pwd/${outputFile}`
+    rear: `-f mp4 "/pwd/${outputFile}"`
   });
 }
 
