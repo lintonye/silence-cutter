@@ -135,14 +135,16 @@ async function cutSilence(inputFile, outputFile) {
   console.log("=== Joining videos... ===");
   await runFFmpeg(joinlist, {
     front: "-f concat -safe 0",
-    rear: `-c copy /pwd/${outputFile}`
+    rear: `-f mp4 /pwd/${outputFile}`
   });
 }
 
 const args = process.argv.slice(2);
 
+const then = new Date();
+
 cutSilence(args[0], args[1]).then(r => {
-  console.log("done.");
+  console.log(`done. took ${(new Date() - then) / 1000}s.`);
   // console.log('Video written to ' + args[1])
 });
 
