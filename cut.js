@@ -126,7 +126,7 @@ async function cutSilence(inputFile, outputFile) {
   console.log("=== Splitting video by silence parts... ===", silenceRanges);
   let sliceCount = 0;
   const slice = async (start, end) => {
-    const endPos = end ? `-to ${end}` : "";
+    const endPos = end ? `-t ${end - start}` : "";
     const sliceTemp = sliceTempFile(sliceCount++);
     // https://trac.ffmpeg.org/wiki/Seeking#Cuttingsmallsections
     await runFFmpeg(inputFile, {
