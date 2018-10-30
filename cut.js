@@ -14,6 +14,7 @@ async function run(commandLine) {
 }
 
 function run2(commandLine, stdoutLineScanner, stderrLineScanner) {
+  console.log(" => " + commandLine);
   const proc = require("child_process").exec(commandLine);
   proc.stdout.pipe(process.stdout);
   proc.stderr.pipe(process.stderr);
@@ -59,9 +60,10 @@ async function runFFmpeg(inputFile, params, stderrLineScanner) {
 }
 
 async function detectSilenceAndStill(inputFile) {
+  // disable scene detection for now
+  // -filter:v "select='gt(scene,0.1)',showinfo" \
   const params = `\
-    -filter:v "select='gt(scene,0.1)',showinfo" \
-    -af silencedetect=noise=-40dB:d=3 \
+    -af silencedetect=noise=-30dB:d=3 \
     -f null \
     -
   `;
@@ -84,16 +86,21 @@ async function detectSilenceAndStill(inputFile) {
     if (ss) start = Number.parseFloat(ss[1]);
     const se = silenceEndRegex.exec(line);
     if (se) end = Number.parseFloat(se[1]);
-    const sc = sceneChangeRegex.exec(line);
-    if (sc && start !== null) {
-      // If there's a scene change, discard this range
-      console.log(
-        `===> Discarded silence range starting at ${start} due to scene change.`
-      );
-      start = null;
-    }
+    // const sc = sceneChangeRegex.exec(line);
+    // if (sc && start !== null) {
+    //   // If there's a scene change, discard this range
+    //   console.log(
+    //     `===> Discarded silence range starting at ${start} due to scene change.`
+    //   );
+    //   start = null;
+    // }
     if (start !== null && end !== null) {
+      if (start < 1) {
+        start = 0;
+      }
       silenceRanges.push([start, end]);
+      console.log("=> pushing silence range: ", [start, end]);
+
       start = null;
       end = null;
     }
@@ -121,25 +128,25 @@ async function cutSilence(inputFile, outputFile) {
   const slice = async (start, end) => {
     const endPos = end ? `-to ${end}` : "";
     const sliceTemp = sliceTempFile(sliceCount++);
-    await runFFmpeg(
-      inputFile,
-      `-y -ss ${start} ${endPos} -c copy /pwd/${sliceTemp}`
-    );
+    // https://trac.ffmpeg.org/wiki/Seeking#Cuttingsmallsections
+    await runFFmpeg(inputFile, {
+      front: `-ss ${start} ${endPos}`,
+      rear: `-y -c copy -avoid_negative_ts 1 /pwd/${sliceTemp}`
+    });
     await run2(`echo "file '/pwd/${sliceTemp}'" >> ${joinlist}`);
   };
   for (let i = 0; i < silenceRanges.length; i++) {
-    let start,
-      end = silenceRanges[i][0] + 0.5;
-    if (i === 0) start = 0;
-    else start = silenceRanges[i - 1][1] - 0.5;
+    if (i === 0 && silenceRanges[i][0] === 0) continue;
+    const start = i === 0 ? 0 : silenceRanges[i - 1][1];
+    const end = silenceRanges[i][0];
     await slice(start, end);
   }
   const lastSilenceEnd = silenceRanges[silenceRanges.length - 1][1];
   lastSilenceEnd && (await slice(lastSilenceEnd));
   console.log("=== Joining videos... ===");
   await runFFmpeg(joinlist, {
-    front: "-f concat -safe 0",
-    rear: `-f mp4 "/pwd/${outputFile}"`
+    front: "-y -f concat -safe 0",
+    rear: `-c:v copy "/pwd/${outputFile}"`
   });
 }
 
