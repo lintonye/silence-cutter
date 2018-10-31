@@ -63,7 +63,7 @@ async function detectSilenceAndStill(inputFile) {
   // disable scene detection for now
   // -filter:v "select='gt(scene,0.1)',showinfo" \
   const params = `\
-    -af silencedetect=noise=-40dB:d=3 \
+    -af silencedetect=noise=-35dB:d=3 \
     -f null \
     -
   `;
@@ -135,10 +135,11 @@ async function cutSilence(inputFile, outputFile) {
     });
     await run2(`echo "file '/pwd/${sliceTemp}'" >> ${joinlist}`);
   };
+  const padding = 0.3;
   for (let i = 0; i < silenceRanges.length; i++) {
     if (i === 0 && silenceRanges[i][0] === 0) continue;
-    const start = i === 0 ? 0 : silenceRanges[i - 1][1] - 0.5;
-    const end = silenceRanges[i][0] + 0.5;
+    const start = i === 0 ? 0 : silenceRanges[i - 1][1] - padding;
+    const end = silenceRanges[i][0] + padding;
     await slice(start, end);
   }
   const lastSilenceEnd = silenceRanges[silenceRanges.length - 1][1];
@@ -150,13 +151,21 @@ async function cutSilence(inputFile, outputFile) {
   });
 }
 
+async function cutAll(inputFiles) {
+  for (let inputFile of inputFiles) {
+    const fn = inputFile.substr(0, inputFile.lastIndexOf("."));
+    const outputFile = fn + ".mp4";
+    console.log(`Input: ${inputFile}, Output: ${outputFile}`);
+    await cutSilence(inputFile, outputFile);
+  }
+}
+
 const args = process.argv.slice(2);
-
 const then = new Date();
-
-cutSilence(args[0], args[1]).then(r => {
-  console.log(`done. took ${(new Date() - then) / 1000}s.`);
-  // console.log('Video written to ' + args[1])
+cutAll(args).then(() => {
+  console.log(
+    `done. ${args.length} files. took ${(new Date() - then) / 1000}s.`
+  );
 });
 
 // detectSilenceAndStill(args[0])
