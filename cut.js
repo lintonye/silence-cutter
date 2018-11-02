@@ -63,7 +63,7 @@ async function detectSilenceAndStill(inputFile) {
   // disable scene detection for now
   // -filter:v "select='gt(scene,0.1)',showinfo" \
   const params = `\
-    -af silencedetect=noise=-35dB:d=3 \
+    -af silencedetect=noise=-45dB:d=3 \
     -f null \
     -
   `;
@@ -120,8 +120,7 @@ async function cutSilence(inputFile, outputFile) {
   const sliceTempFile = idx => `${tempFileDir}/slice-tmp${idx}.mov`;
   const joinlist = `${tempFileDir}/joinlist.txt`;
   console.log("=== Cleaning up... ===");
-  await run2("rm -f slice-tmp*.*");
-  await run2(`rm -f ${joinlist}`);
+  await run2(`rm -f ${tempFileDir}/*.*`);
 
   console.log("=== Splitting video by silence parts... ===", silenceRanges);
   let sliceCount = 0;
@@ -145,10 +144,12 @@ async function cutSilence(inputFile, outputFile) {
   const lastSilenceEnd = silenceRanges[silenceRanges.length - 1][1];
   lastSilenceEnd && (await slice(lastSilenceEnd));
   console.log("=== Joining videos... ===");
+  const concatFile = `${tempFileDir}/concatenated.mov`;
   await runFFmpeg(joinlist, {
     front: "-y -f concat -safe 0",
-    rear: `-c:v copy "/pwd/${outputFile}"`
+    rear: `-c copy /pwd/${concatFile}`
   });
+  await runFFmpeg(concatFile, `-y -f mp4 -c:a copy "/pwd/${outputFile}"`);
 }
 
 async function cutAll(inputFiles) {
